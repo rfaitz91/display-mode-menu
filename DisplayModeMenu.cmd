@@ -60,27 +60,6 @@ function Set-DisplayTopology {
     }
 }
 
-function New-ShortcutCommand {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ScriptPath
-    )
-
-    $escapedScriptPath = $ScriptPath.Replace("'", "''")
-    $command = @"
-`$env:DMM_CMD_PATH = '$escapedScriptPath'
-`$env:DMM_MODE = 'Menu'
-`$content = Get-Content -Raw -LiteralPath `$env:DMM_CMD_PATH
-`$marker = '### ' + 'POWERSHELL_START'
-`$index = `$content.LastIndexOf(`$marker)
-if (`$index -lt 0) { throw 'PowerShell section not found.' }
-Invoke-Expression `$content.Substring(`$index + `$marker.Length)
-"@
-
-    $bytes = [System.Text.Encoding]::Unicode.GetBytes($command)
-    return [Convert]::ToBase64String($bytes)
-}
-
 function Install-DesktopShortcut {
     Add-Type -AssemblyName System.Windows.Forms
 
@@ -122,12 +101,13 @@ This will copy the app there and create or replace the desktop shortcut.
     $desktop = [Environment]::GetFolderPath("Desktop")
     $shortcutPath = Join-Path $desktop "Display Mode Menu.lnk"
     $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
-    $encodedCommand = New-ShortcutCommand -ScriptPath $installedScriptPath
+    $escapedScriptPath = $installedScriptPath.Replace("'", "''")
+    $shortcutCommand = "`$env:DMM_CMD_PATH='$escapedScriptPath';`$env:DMM_MODE='Menu';`$m='### '+'POWERSHELL_START';`$c=Get-Content -Raw -LiteralPath `$env:DMM_CMD_PATH;Invoke-Expression `$c.Substring(`$c.LastIndexOf(`$m)+`$m.Length)"
 
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = $powershellPath
-    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand $encodedCommand"
+    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$shortcutCommand`""
     $shortcut.WorkingDirectory = $installDirectory
     $shortcut.IconLocation = "$env:WINDIR\System32\Display.dll,0"
     $shortcut.Description = "Choose Home or Away display mode"
