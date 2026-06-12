@@ -51,7 +51,40 @@ function Set-DisplayTopology {
 }
 
 function Install-DesktopShortcut {
-    $scriptPath = $PSCommandPath
+    $sourceDirectory = Split-Path $PSCommandPath -Parent
+    $installDirectory = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Display Mode Menu"
+    $installFiles = @(
+        "DisplayModeMenu.ps1",
+        "Install Desktop Shortcut.vbs",
+        "Display Mode Menu.vbs",
+        "Home.vbs",
+        "Away.vbs",
+        "Install Desktop Shortcut.cmd",
+        "Display Mode Menu.cmd",
+        "Home.cmd",
+        "Away.cmd",
+        "README.md"
+    )
+
+    if (-not (Test-Path -LiteralPath $installDirectory)) {
+        New-Item -Path $installDirectory -ItemType Directory | Out-Null
+    }
+
+    foreach ($file in $installFiles) {
+        $sourcePath = Join-Path $sourceDirectory $file
+        $destinationPath = Join-Path $installDirectory $file
+
+        if (Test-Path -LiteralPath $sourcePath) {
+            $sourceFullPath = [System.IO.Path]::GetFullPath($sourcePath)
+            $destinationFullPath = [System.IO.Path]::GetFullPath($destinationPath)
+
+            if (-not [string]::Equals($sourceFullPath, $destinationFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+            }
+        }
+    }
+
+    $scriptPath = Join-Path $installDirectory "DisplayModeMenu.ps1"
     $desktop = [Environment]::GetFolderPath("Desktop")
     $shortcutPath = Join-Path $desktop "Display Mode Menu.lnk"
     $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -65,6 +98,7 @@ function Install-DesktopShortcut {
     $shortcut.Description = "Choose Home or Away display mode"
     $shortcut.Save()
 
+    Write-Host "Installed files to: $installDirectory"
     Write-Host "Created desktop shortcut: $shortcutPath"
 }
 
