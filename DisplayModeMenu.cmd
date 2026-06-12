@@ -1,9 +1,19 @@
-param(
-    [ValidateSet("Menu", "Home", "Away", "InstallShortcut")]
-    [string]$Mode = "Menu"
-)
+@echo off
+setlocal
+set "DMM_CMD_PATH=%~f0"
+set "DMM_MODE=%~1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$content = Get-Content -Raw -LiteralPath $env:DMM_CMD_PATH; $marker = '### POWERSHELL_START'; $index = $content.LastIndexOf($marker); if ($index -lt 0) { throw 'PowerShell section not found.' }; Invoke-Expression $content.Substring($index + $marker.Length)"
+exit /b %ERRORLEVEL%
 
+### POWERSHELL_START
 $ErrorActionPreference = "Stop"
+
+$mode = if ([string]::IsNullOrWhiteSpace($env:DMM_MODE)) { "Menu" } else { $env:DMM_MODE }
+$validModes = @("Menu", "Home", "Away", "InstallShortcut")
+
+if ($validModes -notcontains $mode) {
+    throw "Unknown mode: $mode"
+}
 
 Add-Type -TypeDefinition @"
 using System;
@@ -50,25 +60,33 @@ function Set-DisplayTopology {
     }
 }
 
-function Install-DesktopShortcut {
-    $sourceDirectory = Split-Path $PSCommandPath -Parent
-    $installDirectory = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Display Mode Menu"
-    $installFiles = @(
-        "DisplayModeMenu.ps1",
-        "Install Desktop Shortcut.cmd",
-        "Display Mode Menu.cmd",
-        "Home.cmd",
-        "Away.cmd",
-        "README.md"
-    )
-    $oldLauncherFiles = @(
-        "Install Desktop Shortcut.vbs",
-        "Display Mode Menu.vbs",
-        "Home.vbs",
-        "Away.vbs"
+function New-ShortcutCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptPath
     )
 
+    $escapedScriptPath = $ScriptPath.Replace("'", "''")
+    $command = @"
+`$env:DMM_CMD_PATH = '$escapedScriptPath'
+`$env:DMM_MODE = 'Menu'
+`$content = Get-Content -Raw -LiteralPath `$env:DMM_CMD_PATH
+`$marker = '### ' + 'POWERSHELL_START'
+`$index = `$content.LastIndexOf(`$marker)
+if (`$index -lt 0) { throw 'PowerShell section not found.' }
+Invoke-Expression `$content.Substring(`$index + `$marker.Length)
+"@
+
+    $bytes = [System.Text.Encoding]::Unicode.GetBytes($command)
+    return [Convert]::ToBase64String($bytes)
+}
+
+function Install-DesktopShortcut {
     Add-Type -AssemblyName System.Windows.Forms
+
+    $sourcePath = $env:DMM_CMD_PATH
+    $installDirectory = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Display Mode Menu"
+    $installedScriptPath = Join-Path $installDirectory "DisplayModeMenu.cmd"
 
     $message = @"
 Install Display Mode Menu to:
@@ -94,44 +112,33 @@ This will copy the app there and create or replace the desktop shortcut.
         New-Item -Path $installDirectory -ItemType Directory | Out-Null
     }
 
-    foreach ($file in $installFiles) {
-        $sourcePath = Join-Path $sourceDirectory $file
-        $destinationPath = Join-Path $installDirectory $file
+    $sourceFullPath = [System.IO.Path]::GetFullPath($sourcePath)
+    $destinationFullPath = [System.IO.Path]::GetFullPath($installedScriptPath)
 
-        if (Test-Path -LiteralPath $sourcePath) {
-            $sourceFullPath = [System.IO.Path]::GetFullPath($sourcePath)
-            $destinationFullPath = [System.IO.Path]::GetFullPath($destinationPath)
-
-            if (-not [string]::Equals($sourceFullPath, $destinationFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
-                Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
-            }
-        }
+    if (-not [string]::Equals($sourceFullPath, $destinationFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Copy-Item -LiteralPath $sourcePath -Destination $installedScriptPath -Force
     }
 
-    foreach ($file in $oldLauncherFiles) {
-        $oldPath = Join-Path $installDirectory $file
-
-        if (Test-Path -LiteralPath $oldPath) {
-            Remove-Item -LiteralPath $oldPath -Force
-        }
-    }
-
-    $scriptPath = Join-Path $installDirectory "DisplayModeMenu.ps1"
     $desktop = [Environment]::GetFolderPath("Desktop")
     $shortcutPath = Join-Path $desktop "Display Mode Menu.lnk"
     $powershellPath = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
+    $encodedCommand = New-ShortcutCommand -ScriptPath $installedScriptPath
 
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = $powershellPath
-    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`""
-    $shortcut.WorkingDirectory = Split-Path $scriptPath -Parent
+    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand $encodedCommand"
+    $shortcut.WorkingDirectory = $installDirectory
     $shortcut.IconLocation = "$env:WINDIR\System32\Display.dll,0"
     $shortcut.Description = "Choose Home or Away display mode"
     $shortcut.Save()
 
-    Write-Host "Installed files to: $installDirectory"
-    Write-Host "Created desktop shortcut: $shortcutPath"
+    [System.Windows.Forms.MessageBox]::Show(
+        "Installed to:`n$installDirectory`n`nCreated desktop shortcut:`n$shortcutPath",
+        "Display Mode Menu",
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Information
+    ) | Out-Null
 }
 
 function Show-DisplayModeMenu {
@@ -144,7 +151,7 @@ function Show-DisplayModeMenu {
     $form.FormBorderStyle = "FixedDialog"
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
-    $form.ClientSize = New-Object System.Drawing.Size(320, 145)
+    $form.ClientSize = New-Object System.Drawing.Size(320, 190)
 
     $label = New-Object System.Windows.Forms.Label
     $label.Text = "Choose a display profile:"
@@ -182,10 +189,25 @@ function Show-DisplayModeMenu {
     })
     $form.Controls.Add($awayButton)
 
+    $installButton = New-Object System.Windows.Forms.Button
+    $installButton.Text = "Install / Update Desktop Shortcut"
+    $installButton.Size = New-Object System.Drawing.Size(280, 34)
+    $installButton.Location = New-Object System.Drawing.Point(20, 132)
+    $installButton.Add_Click({
+        try {
+            Install-DesktopShortcut
+            $form.Close()
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Display Mode", "OK", "Error") | Out-Null
+        }
+    })
+    $form.Controls.Add($installButton)
+
     [void]$form.ShowDialog()
 }
 
-switch ($Mode) {
+switch ($mode) {
     "Home" { Set-DisplayTopology -Profile "Home" }
     "Away" { Set-DisplayTopology -Profile "Away" }
     "InstallShortcut" { Install-DesktopShortcut }
