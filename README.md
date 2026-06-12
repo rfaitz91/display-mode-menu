@@ -31,7 +31,7 @@ In short:
 
 1. Download the ZIP.
 2. Extract it.
-3. Double-click `DisplayModeMenu.cmd`.
+3. Double-click `Install Display Mode Menu.cmd`.
 4. Click `Install / Update Desktop Shortcut`.
 5. Click `Yes` when it asks to install into your Documents folder.
 6. Double-click the new `Display Mode Menu` shortcut on your desktop.
@@ -47,7 +47,7 @@ After that, you can delete the downloaded ZIP and extracted download folder. Kee
 
 ## Files
 
-- `DisplayModeMenu.cmd`: the whole app and installer.
+- `Install Display Mode Menu.cmd`: the whole app and installer.
 
 ## Important
 
@@ -57,7 +57,7 @@ Windows decides which monitor is the primary display. If Away keeps the wrong sc
 
 ## Updating
 
-Download the newest ZIP, extract it, run `DisplayModeMenu.cmd`, and click `Install / Update Desktop Shortcut` again. It will replace the copy in `Documents\Display Mode Menu` and update the desktop shortcut.
+Download the newest ZIP, extract it, run `Install Display Mode Menu.cmd`, and click `Install / Update Desktop Shortcut` again. It will replace the copy in `Documents\Display Mode Menu` and update the desktop shortcut.
 
 ## Uninstalling
 
