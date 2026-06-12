@@ -1,2 +1,2 @@
 @echo off
-start "" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0DisplayModeMenu.ps1" -Mode Home
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0DisplayModeMenu.ps1" -Mode Home

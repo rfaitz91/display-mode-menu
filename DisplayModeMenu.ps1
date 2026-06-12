@@ -55,16 +55,40 @@ function Install-DesktopShortcut {
     $installDirectory = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Display Mode Menu"
     $installFiles = @(
         "DisplayModeMenu.ps1",
-        "Install Desktop Shortcut.vbs",
-        "Display Mode Menu.vbs",
-        "Home.vbs",
-        "Away.vbs",
         "Install Desktop Shortcut.cmd",
         "Display Mode Menu.cmd",
         "Home.cmd",
         "Away.cmd",
         "README.md"
     )
+    $oldLauncherFiles = @(
+        "Install Desktop Shortcut.vbs",
+        "Display Mode Menu.vbs",
+        "Home.vbs",
+        "Away.vbs"
+    )
+
+    Add-Type -AssemblyName System.Windows.Forms
+
+    $message = @"
+Install Display Mode Menu to:
+
+$installDirectory
+
+This will copy the app there and create or replace the desktop shortcut.
+"@
+
+    $choice = [System.Windows.Forms.MessageBox]::Show(
+        $message,
+        "Install Display Mode Menu",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Question
+    )
+
+    if ($choice -ne [System.Windows.Forms.DialogResult]::Yes) {
+        Write-Host "Install canceled."
+        return
+    }
 
     if (-not (Test-Path -LiteralPath $installDirectory)) {
         New-Item -Path $installDirectory -ItemType Directory | Out-Null
@@ -81,6 +105,14 @@ function Install-DesktopShortcut {
             if (-not [string]::Equals($sourceFullPath, $destinationFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
                 Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
             }
+        }
+    }
+
+    foreach ($file in $oldLauncherFiles) {
+        $oldPath = Join-Path $installDirectory $file
+
+        if (Test-Path -LiteralPath $oldPath) {
+            Remove-Item -LiteralPath $oldPath -Force
         }
     }
 
