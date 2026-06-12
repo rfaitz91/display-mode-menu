@@ -7,6 +7,26 @@ Use it when you want one desktop icon with two choices:
 - **Home**: turn on all displays using Windows Extend mode.
 - **Away**: use only the primary display.
 
+## What it does
+
+This tool is a lightweight Windows shortcut that lets a user switch display modes without opening Windows Display Settings.
+
+When installed, it copies one command file into the user's Documents folder and creates a desktop shortcut. It does not install software in Program Files, add a Windows service, create a scheduled task, install drivers, or modify the registry.
+
+When the user clicks **Home**, the tool asks Windows to enable the normal extended desktop display mode. This is equivalent to pressing `Win + P` and choosing **Extend**.
+
+When the user clicks **Away**, the tool asks Windows to use only the primary display. This is equivalent to pressing `Win + P` and choosing **PC screen only**.
+
+The display change is performed through Microsoft's built-in Windows display configuration API, `SetDisplayConfig`, which is part of `user32.dll`. The script is not directly manipulating display drivers or monitor hardware. It is simply asking Windows to apply one of its standard display layouts.
+
+In short:
+
+- **Install action**: copies one file to `Documents\Display Mode Menu` and creates a desktop shortcut.
+- **Home action**: switches Windows display mode to **Extend**.
+- **Away action**: switches Windows display mode to **PC screen only**.
+- **No background process** remains running after the user closes the menu.
+- **No drivers, services, scheduled tasks, registry changes, or third-party dependencies** are added.
+
 ## How to use it
 
 1. Download the ZIP.
