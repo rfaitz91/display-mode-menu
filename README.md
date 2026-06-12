@@ -10,17 +10,18 @@ Use it when you want one desktop icon with two choices:
 ## How to use it
 
 1. Download or clone this folder.
-2. Double-click `Install Desktop Shortcut.cmd`.
+2. Double-click `Install Desktop Shortcut.vbs`.
 3. Double-click the new `Display Mode Menu` shortcut on your desktop.
 4. Pick `Home` or `Away`.
 
 ## Files
 
 - `DisplayModeMenu.ps1`: the real script.
-- `Display Mode Menu.cmd`: opens the menu.
-- `Home.cmd`: switches straight to Home.
-- `Away.cmd`: switches straight to Away.
-- `Install Desktop Shortcut.cmd`: creates the desktop shortcut.
+- `Install Desktop Shortcut.vbs`: creates the desktop shortcut without leaving a command window open.
+- `Display Mode Menu.vbs`: opens the menu without a command window.
+- `Home.vbs`: switches straight to Home without a command window.
+- `Away.vbs`: switches straight to Away without a command window.
+- `.cmd` files: backup launchers for systems where `.vbs` files are blocked.
 
 ## Important
 

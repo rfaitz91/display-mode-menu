@@ -59,7 +59,7 @@ function Install-DesktopShortcut {
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = $powershellPath
-    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$scriptPath`""
     $shortcut.WorkingDirectory = Split-Path $scriptPath -Parent
     $shortcut.IconLocation = "$env:WINDIR\System32\Display.dll,0"
     $shortcut.Description = "Choose Home or Away display mode"
