@@ -17,6 +17,8 @@ Use it when you want one desktop icon with two choices:
 6. Double-click the new `Display Mode Menu` shortcut on your desktop.
 7. Pick `Home` or `Away`.
 
+Home and Away are only shown after the app is installed. The downloaded copy is install-only.
+
 The installer copies the app into:
 
 `Documents\Display Mode Menu`

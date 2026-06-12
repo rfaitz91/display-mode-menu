@@ -15,6 +15,21 @@ if ($validModes -notcontains $mode) {
     throw "Unknown mode: $mode"
 }
 
+function Get-InstallDirectory {
+    return Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Display Mode Menu"
+}
+
+function Get-InstalledScriptPath {
+    return Join-Path (Get-InstallDirectory) "DisplayModeMenu.cmd"
+}
+
+function Test-IsInstalledLaunch {
+    $currentPath = [System.IO.Path]::GetFullPath($env:DMM_CMD_PATH)
+    $installedPath = [System.IO.Path]::GetFullPath((Get-InstalledScriptPath))
+
+    return [string]::Equals($currentPath, $installedPath, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -64,8 +79,8 @@ function Install-DesktopShortcut {
     Add-Type -AssemblyName System.Windows.Forms
 
     $sourcePath = $env:DMM_CMD_PATH
-    $installDirectory = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Display Mode Menu"
-    $installedScriptPath = Join-Path $installDirectory "DisplayModeMenu.cmd"
+    $installDirectory = Get-InstallDirectory
+    $installedScriptPath = Get-InstalledScriptPath
 
     $message = @"
 Install Display Mode Menu to:
@@ -125,54 +140,68 @@ function Show-DisplayModeMenu {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
 
+    $isInstalledLaunch = Test-IsInstalledLaunch
+
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "Display Mode"
     $form.StartPosition = "CenterScreen"
     $form.FormBorderStyle = "FixedDialog"
     $form.MaximizeBox = $false
     $form.MinimizeBox = $false
-    $form.ClientSize = New-Object System.Drawing.Size(320, 190)
+    $form.ClientSize = if ($isInstalledLaunch) {
+        New-Object System.Drawing.Size(320, 145)
+    }
+    else {
+        New-Object System.Drawing.Size(320, 105)
+    }
 
     $label = New-Object System.Windows.Forms.Label
-    $label.Text = "Choose a display profile:"
+    $label.Text = if ($isInstalledLaunch) { "Choose a display profile:" } else { "Install before using display profiles:" }
     $label.AutoSize = $true
     $label.Location = New-Object System.Drawing.Point(18, 18)
     $form.Controls.Add($label)
 
-    $homeButton = New-Object System.Windows.Forms.Button
-    $homeButton.Text = "Home - Enable all displays"
-    $homeButton.Size = New-Object System.Drawing.Size(280, 34)
-    $homeButton.Location = New-Object System.Drawing.Point(20, 48)
-    $homeButton.Add_Click({
-        try {
-            Set-DisplayTopology -Profile "Home"
-            $form.Close()
-        }
-        catch {
-            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Display Mode", "OK", "Error") | Out-Null
-        }
-    })
-    $form.Controls.Add($homeButton)
+    if ($isInstalledLaunch) {
+        $homeButton = New-Object System.Windows.Forms.Button
+        $homeButton.Text = "Home - Enable all displays"
+        $homeButton.Size = New-Object System.Drawing.Size(280, 34)
+        $homeButton.Location = New-Object System.Drawing.Point(20, 48)
+        $homeButton.Add_Click({
+            try {
+                Set-DisplayTopology -Profile "Home"
+                $form.Close()
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Display Mode", "OK", "Error") | Out-Null
+            }
+        })
+        $form.Controls.Add($homeButton)
 
-    $awayButton = New-Object System.Windows.Forms.Button
-    $awayButton.Text = "Away - Primary display only"
-    $awayButton.Size = New-Object System.Drawing.Size(280, 34)
-    $awayButton.Location = New-Object System.Drawing.Point(20, 90)
-    $awayButton.Add_Click({
-        try {
-            Set-DisplayTopology -Profile "Away"
-            $form.Close()
-        }
-        catch {
-            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Display Mode", "OK", "Error") | Out-Null
-        }
-    })
-    $form.Controls.Add($awayButton)
+        $awayButton = New-Object System.Windows.Forms.Button
+        $awayButton.Text = "Away - Primary display only"
+        $awayButton.Size = New-Object System.Drawing.Size(280, 34)
+        $awayButton.Location = New-Object System.Drawing.Point(20, 90)
+        $awayButton.Add_Click({
+            try {
+                Set-DisplayTopology -Profile "Away"
+                $form.Close()
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Display Mode", "OK", "Error") | Out-Null
+            }
+        })
+        $form.Controls.Add($awayButton)
+    }
 
     $installButton = New-Object System.Windows.Forms.Button
     $installButton.Text = "Install / Update Desktop Shortcut"
     $installButton.Size = New-Object System.Drawing.Size(280, 34)
-    $installButton.Location = New-Object System.Drawing.Point(20, 132)
+    $installButton.Location = if ($isInstalledLaunch) {
+        New-Object System.Drawing.Point(20, 132)
+    }
+    else {
+        New-Object System.Drawing.Point(20, 48)
+    }
     $installButton.Add_Click({
         try {
             Install-DesktopShortcut
@@ -182,14 +211,29 @@ function Show-DisplayModeMenu {
             [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, "Display Mode", "OK", "Error") | Out-Null
         }
     })
-    $form.Controls.Add($installButton)
+
+    if (-not $isInstalledLaunch) {
+        $form.Controls.Add($installButton)
+    }
 
     [void]$form.ShowDialog()
 }
 
 switch ($mode) {
-    "Home" { Set-DisplayTopology -Profile "Home" }
-    "Away" { Set-DisplayTopology -Profile "Away" }
+    "Home" {
+        if (-not (Test-IsInstalledLaunch)) {
+            throw "Install Display Mode Menu before using Home."
+        }
+
+        Set-DisplayTopology -Profile "Home"
+    }
+    "Away" {
+        if (-not (Test-IsInstalledLaunch)) {
+            throw "Install Display Mode Menu before using Away."
+        }
+
+        Set-DisplayTopology -Profile "Away"
+    }
     "InstallShortcut" { Install-DesktopShortcut }
     default { Show-DisplayModeMenu }
 }
